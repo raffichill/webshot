@@ -40,7 +40,7 @@ async function copyImageFromDataUrl(dataUrl) {
   try {
     const blob = await toCssPixelBlob(dataUrl);
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    flash("Copied to clipboard");
+    flash("Webshot!");
     return { ok: true };
   } catch (error) {
     flash("Webshot: clipboard blocked — click the page and retry");
@@ -75,12 +75,12 @@ async function copyImageFromDataUrl(dataUrl) {
 
   function flash(text) {
     const IN_SPRING = "cubic-bezier(0.175, 0.885, 0.32, 1.1)";
-    const OUT_EASE = "cubic-bezier(0.4, 0, 0.6, 1)";
-    const HIDDEN = "translateY(calc(100% + 32px))";
+    const OUT_SPRING = "cubic-bezier(0.36, 0, 0.66, -0.15)";
+    const HIDDEN = "translateY(calc(100% + 104px))";
     const SHOWN = "translateY(0)";
     const IN_MS = 240;
     const OUT_MS = 400;
-    const HOLD_MS = 800;
+    const HOLD_MS = 1200;
 
     const el = document.createElement("div");
     el.textContent = text;
@@ -104,7 +104,7 @@ async function copyImageFromDataUrl(dataUrl) {
       el.style.transform = SHOWN;
     });
     setTimeout(() => {
-      el.style.transition = `transform ${OUT_MS}ms ${OUT_EASE}`;
+      el.style.transition = `transform ${OUT_MS}ms ${OUT_SPRING}`;
       el.style.transform = HIDDEN;
       setTimeout(() => el.remove(), OUT_MS);
     }, HOLD_MS);
