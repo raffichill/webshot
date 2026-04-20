@@ -18,6 +18,13 @@ chrome.action.onClicked.addListener(async (tab) => {
   await capture(tab);
 });
 
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "capture") return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  await capture(tab);
+});
+
 async function capture(tab) {
   try {
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
