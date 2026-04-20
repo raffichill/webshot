@@ -3,7 +3,7 @@ const MENU_ID = "webshot-capture";
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
-    title: "Webshot: copy page as image",
+    title: "Copy page as image",
     contexts: ["page", "image", "link", "selection", "frame", "video", "audio"]
   });
 });
@@ -69,6 +69,13 @@ async function copyImageFromDataUrl(dataUrl) {
   }
 
   function flash(text) {
+    const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+    const HIDDEN = "translateY(calc(100% + 32px))";
+    const SHOWN = "translateY(0)";
+    const IN_MS = 380;
+    const OUT_MS = 280;
+    const HOLD_MS = 1400;
+
     const el = document.createElement("div");
     el.textContent = text;
     Object.assign(el.style, {
@@ -83,14 +90,15 @@ async function copyImageFromDataUrl(dataUrl) {
       zIndex: "2147483647",
       boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
       pointerEvents: "none",
-      opacity: "0",
-      transition: "opacity 120ms ease"
+      transform: HIDDEN,
+      transition: `transform ${IN_MS}ms ${SPRING}`
     });
     document.documentElement.appendChild(el);
-    requestAnimationFrame(() => { el.style.opacity = "1"; });
+    requestAnimationFrame(() => { el.style.transform = SHOWN; });
     setTimeout(() => {
-      el.style.opacity = "0";
-      setTimeout(() => el.remove(), 200);
-    }, 1200);
+      el.style.transition = `transform ${OUT_MS}ms ${SPRING}`;
+      el.style.transform = HIDDEN;
+      setTimeout(() => el.remove(), OUT_MS);
+    }, HOLD_MS);
   }
 }
