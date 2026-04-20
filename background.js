@@ -3,7 +3,7 @@ const MENU_ID = "webshot-capture";
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
-    title: "Webshot!",
+    title: "Webshot",
     contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
   });
 });
@@ -83,14 +83,15 @@ async function copyImageFromDataUrl(dataUrl) {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  padding: 10px 14px 11px;
+  padding: 10px 12px 11px;
   background: rgba(17, 17, 17, 0.92);
   color: white;
   font: 500 13px/1 -apple-system, system-ui, sans-serif;
   border-radius: 8px;
+  corner-shape: squircle;
   z-index: 2147483647;
   pointer-events: none;
-  transform: translateY(calc(100% + 104px));
+  transform: translateY(calc(100% + 36px));
   transition-property: transform;
 }
 .webshot-toast.is-in {
@@ -102,14 +103,14 @@ async function copyImageFromDataUrl(dataUrl) {
 .webshot-toast.is-out {
   transition-duration: 400ms;
   transition-timing-function: cubic-bezier(0.36, 0, 0.66, -0.15);
-  transform: translateY(calc(100% + 104px));
+  transform: translateY(calc(100% + 36px));
 }
 `;
     document.documentElement.appendChild(style);
   }
 
   function flash(text) {
-    const HOLD_MS = 1200;
+    const HOLD_MS = 1400;
     const OUT_MS = 400;
     ensureStyles();
     const el = document.createElement("div");
