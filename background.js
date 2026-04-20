@@ -40,7 +40,7 @@ async function copyImageFromDataUrl(dataUrl) {
   try {
     const blob = await toCssPixelBlob(dataUrl);
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    flash("Copied page to clipboard");
+    flash("Copied to clipboard");
     return { ok: true };
   } catch (error) {
     flash("Webshot: clipboard blocked — click the page and retry");
@@ -74,7 +74,7 @@ async function copyImageFromDataUrl(dataUrl) {
   }
 
   function flash(text) {
-    const IN_SPRING = "cubic-bezier(0.175, 0.885, 0.32, 1.1)";
+    const IN_EASE = "cubic-bezier(0.42, 0, 0.58, 1)";
     const OUT_SPRING = "cubic-bezier(0.36, 0, 0.66, -0.15)";
     const HIDDEN = "translateY(calc(100% + 104px))";
     const SHOWN = "translateY(0)";
@@ -97,7 +97,7 @@ async function copyImageFromDataUrl(dataUrl) {
       // boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
       pointerEvents: "none",
       transform: HIDDEN,
-      transition: `transform ${IN_MS}ms ${IN_SPRING}`,
+      transition: `transform ${IN_MS}ms ${IN_EASE}`,
     });
     document.documentElement.appendChild(el);
     requestAnimationFrame(() => {

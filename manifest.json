@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Webshot",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Right-click any page to copy a screenshot to the clipboard for moodboarding.",
   "permissions": ["contextMenus", "activeTab", "scripting"],
   "background": {
