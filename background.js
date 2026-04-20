@@ -74,12 +74,13 @@ async function copyImageFromDataUrl(dataUrl) {
   }
 
   function flash(text) {
-    const SPRING = "cubic-bezier(0.175, 0.885, 0.32, 1.1)";
+    const IN_SPRING = "cubic-bezier(0.175, 0.885, 0.32, 1.1)";
+    const OUT_EASE = "cubic-bezier(0.4, 0, 0.6, 1)";
     const HIDDEN = "translateY(calc(100% + 32px))";
     const SHOWN = "translateY(0)";
     const IN_MS = 240;
     const OUT_MS = 400;
-    const HOLD_MS = 1600;
+    const HOLD_MS = 800;
 
     const el = document.createElement("div");
     el.textContent = text;
@@ -96,14 +97,14 @@ async function copyImageFromDataUrl(dataUrl) {
       // boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
       pointerEvents: "none",
       transform: HIDDEN,
-      transition: `transform ${IN_MS}ms ${SPRING}`,
+      transition: `transform ${IN_MS}ms ${IN_SPRING}`,
     });
     document.documentElement.appendChild(el);
     requestAnimationFrame(() => {
       el.style.transform = SHOWN;
     });
     setTimeout(() => {
-      el.style.transition = `transform ${OUT_MS}ms ${SPRING}`;
+      el.style.transition = `transform ${OUT_MS}ms ${OUT_EASE}`;
       el.style.transform = HIDDEN;
       setTimeout(() => el.remove(), OUT_MS);
     }, HOLD_MS);
