@@ -14,7 +14,7 @@ A tiny, single-purpose Chrome extension. No popup, no settings, no download step
 
 ## Use
 
-- Right-click anywhere on a page → **Copy page as image**
+- Right-click anywhere on a page → **Webshot!**
 - Or click the toolbar icon to capture the active tab
 - A small toast confirms the copy; `⌘V` / `Ctrl+V` into Figma
 

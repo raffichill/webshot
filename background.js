@@ -3,7 +3,7 @@ const MENU_ID = "webshot-capture";
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
-    title: "Copy page as image",
+    title: "Webshot!",
     contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
   });
 });
@@ -40,7 +40,7 @@ async function copyImageFromDataUrl(dataUrl) {
   try {
     const blob = await toCssPixelBlob(dataUrl);
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    flash("Webshot!");
+    flash("Copied page to clipboard");
     return { ok: true };
   } catch (error) {
     flash("Webshot: clipboard blocked — click the page and retry");
