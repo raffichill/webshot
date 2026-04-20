@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_ID,
     title: "Copy page as image",
-    contexts: ["page", "image", "link", "selection", "frame", "video", "audio"]
+    contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
   });
 });
 
@@ -20,11 +20,13 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 async function capture(tab) {
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
+      format: "png",
+    });
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: copyImageFromDataUrl,
-      args: [dataUrl]
+      args: [dataUrl],
     });
     if (!result?.result?.ok) {
       console.warn("Webshot clipboard write failed:", result?.result?.error);
@@ -56,7 +58,7 @@ async function copyImageFromDataUrl(dataUrl) {
     const resized = await createImageBitmap(sourceBlob, {
       resizeWidth: targetW,
       resizeHeight: targetH,
-      resizeQuality: "high"
+      resizeQuality: "high",
     });
     const canvas = document.createElement("canvas");
     canvas.width = targetW;
@@ -64,17 +66,20 @@ async function copyImageFromDataUrl(dataUrl) {
     canvas.getContext("2d").drawImage(resized, 0, 0);
     resized.close?.();
     return await new Promise((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+        "image/png",
+      );
     });
   }
 
   function flash(text) {
-    const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+    const SPRING = "cubic-bezier(0.175, 0.885, 0.32, 1.1)";
     const HIDDEN = "translateY(calc(100% + 32px))";
     const SHOWN = "translateY(0)";
-    const IN_MS = 380;
-    const OUT_MS = 280;
-    const HOLD_MS = 1400;
+    const IN_MS = 240;
+    const OUT_MS = 400;
+    const HOLD_MS = 1600;
 
     const el = document.createElement("div");
     el.textContent = text;
@@ -82,19 +87,21 @@ async function copyImageFromDataUrl(dataUrl) {
       position: "fixed",
       bottom: "24px",
       right: "24px",
-      padding: "10px 14px",
+      padding: "10px 14px 11px",
       background: "rgba(17,17,17,0.92)",
       color: "white",
       font: "500 13px/1 -apple-system, system-ui, sans-serif",
       borderRadius: "8px",
       zIndex: "2147483647",
-      boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
+      // boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
       pointerEvents: "none",
       transform: HIDDEN,
-      transition: `transform ${IN_MS}ms ${SPRING}`
+      transition: `transform ${IN_MS}ms ${SPRING}`,
     });
     document.documentElement.appendChild(el);
-    requestAnimationFrame(() => { el.style.transform = SHOWN; });
+    requestAnimationFrame(() => {
+      el.style.transform = SHOWN;
+    });
     setTimeout(() => {
       el.style.transition = `transform ${OUT_MS}ms ${SPRING}`;
       el.style.transform = HIDDEN;
