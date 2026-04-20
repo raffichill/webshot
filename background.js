@@ -36,13 +36,36 @@ async function capture(tab) {
 
 async function copyImageFromDataUrl(dataUrl) {
   try {
-    const blob = await (await fetch(dataUrl)).blob();
+    const blob = await toCssPixelBlob(dataUrl);
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
     flash("Copied to clipboard");
     return { ok: true };
   } catch (error) {
     flash("Webshot: clipboard blocked — click the page and retry");
     return { ok: false, error: String(error) };
+  }
+
+  async function toCssPixelBlob(src) {
+    const dpr = window.devicePixelRatio || 1;
+    const sourceBlob = await (await fetch(src)).blob();
+    if (dpr <= 1) return sourceBlob;
+    const probe = await createImageBitmap(sourceBlob);
+    const targetW = Math.round(probe.width / dpr);
+    const targetH = Math.round(probe.height / dpr);
+    probe.close?.();
+    const resized = await createImageBitmap(sourceBlob, {
+      resizeWidth: targetW,
+      resizeHeight: targetH,
+      resizeQuality: "high"
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    canvas.getContext("2d").drawImage(resized, 0, 0);
+    resized.close?.();
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
+    });
   }
 
   function flash(text) {
