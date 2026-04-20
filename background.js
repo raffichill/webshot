@@ -40,6 +40,7 @@ async function copyImageFromDataUrl(dataUrl) {
   try {
     const blob = await toCssPixelBlob(dataUrl);
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    flashScreen();
     flash("Copied to clipboard");
     return { ok: true };
   } catch (error) {
@@ -75,9 +76,12 @@ async function copyImageFromDataUrl(dataUrl) {
 
   function ensureStyles() {
     const ID = "webshot-toast-styles";
-    if (document.getElementById(ID)) return;
-    const style = document.createElement("style");
-    style.id = ID;
+    let style = document.getElementById(ID);
+    if (!style) {
+      style = document.createElement("style");
+      style.id = ID;
+      document.documentElement.appendChild(style);
+    }
     style.textContent = `
 .webshot-toast {
   position: fixed;
@@ -105,8 +109,29 @@ async function copyImageFromDataUrl(dataUrl) {
   transition-timing-function: cubic-bezier(0.36, 0, 0.66, -0.15);
   transform: translateY(calc(100% + 36px));
 }
+@keyframes webshot-flash {
+  0%     { opacity: 0; animation-timing-function: linear; }
+  5.66%  { opacity: 1; animation-timing-function: ease-in-out; }
+  100%   { opacity: 0; }
+}
+.webshot-flash {
+  position: fixed;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2147483646;
+  animation: webshot-flash 1060ms forwards;
+}
 `;
-    document.documentElement.appendChild(style);
+  }
+
+  function flashScreen() {
+    ensureStyles();
+    const el = document.createElement("div");
+    el.className = "webshot-flash";
+    document.documentElement.appendChild(el);
+    setTimeout(() => el.remove(), 1100);
   }
 
   function flash(text) {
