@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Webshot",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "Right-click any page to copy a screenshot to the clipboard.",
-  "permissions": ["contextMenus", "activeTab", "scripting"],
+  "permissions": ["contextMenus", "activeTab", "scripting", "debugger"],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_title": "Webshot — capture this tab",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",
@@ -29,6 +30,13 @@
         "mac": "Alt+Shift+W"
       },
       "description": "Copy page to clipboard"
+    },
+    "capture-full-content": {
+      "suggested_key": {
+        "default": "Alt+Shift+F",
+        "mac": "Alt+Shift+F"
+      },
+      "description": "Copy full page to clipboard"
     }
   }
 }

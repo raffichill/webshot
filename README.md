@@ -14,14 +14,19 @@ A tiny, single-purpose Chrome extension. No popup, no settings, no download step
 
 ## Use
 
-- Right-click anywhere on a page → **Webshot!**
-- Or click the toolbar icon to capture the active tab
+- Right-click anywhere on a page → **Webshot** → **Copy visible viewport**
+- Right-click anywhere on a page → **Webshot** → **Copy full page content**
+- Click the toolbar icon to choose between visible viewport and full page content
+- Keyboard shortcuts:
+  - `Alt`+`Shift`+`W` copies the visible viewport
+  - `Alt`+`Shift`+`F` copies full page content
 - A small toast confirms the copy; `⌘V` / `Ctrl+V` into Figma
 
 ## Scope
 
-- Captures the **visible viewport only** — what's on screen, no browser chrome
+- Captures the **visible viewport** or the **entire page content** — still no browser chrome
 - PNG, full device-pixel resolution (Retina preserved)
+- Full-page mode temporarily grows the page viewport until neither horizontal nor vertical scrolling is needed, captures once, then restores the original tab state
 - Does not work on `chrome://` pages, the Web Store, or other restricted origins — Chrome blocks capture there
 
 ## How it works
