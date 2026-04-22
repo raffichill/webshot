@@ -1,39 +1,97 @@
-const MENU_ID = "webshot-capture";
+const MENU_ROOT_ID = "webshot";
+const MENU_VIEWPORT_ID = "webshot-capture-viewport";
+const MENU_FULL_CONTENT_ID = "webshot-capture-full-content";
+
+const CAPTURE_MODE_VIEWPORT = "viewport";
+const CAPTURE_MODE_FULL_CONTENT = "full-content";
+
+const DEBUGGER_PROTOCOL_VERSION = "1.3";
+const MAX_VIEWPORT_GROWTH_PASSES = 10;
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: MENU_ID,
-    title: "Webshot",
-    contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: MENU_ROOT_ID,
+      title: "Webshot",
+      contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
+    });
+    chrome.contextMenus.create({
+      id: MENU_VIEWPORT_ID,
+      parentId: MENU_ROOT_ID,
+      title: "Copy visible viewport",
+      contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
+    });
+    chrome.contextMenus.create({
+      id: MENU_FULL_CONTENT_ID,
+      parentId: MENU_ROOT_ID,
+      title: "Copy full page content",
+      contexts: ["page", "image", "link", "selection", "frame", "video", "audio"],
+    });
   });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== MENU_ID || !tab?.id) return;
-  await capture(tab);
+  if (!tab?.id) return;
+  if (info.menuItemId === MENU_VIEWPORT_ID) {
+    await capture(tab, CAPTURE_MODE_VIEWPORT);
+  }
+  if (info.menuItemId === MENU_FULL_CONTENT_ID) {
+    await capture(tab, CAPTURE_MODE_FULL_CONTENT);
+  }
 });
 
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab?.id) return;
-  await capture(tab);
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== "capture-mode") return;
+
+  (async () => {
+    try {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      if (!tab?.id) {
+        sendResponse({ ok: false, error: "No active tab" });
+        return;
+      }
+
+      await capture(tab, message.mode);
+      sendResponse({ ok: true });
+    } catch (error) {
+      console.error("Webshot popup capture failed:", error);
+      sendResponse({ ok: false, error: String(error) });
+    }
+  })();
+
+  return true;
 });
 
 chrome.commands.onCommand.addListener(async (command) => {
-  if (command !== "capture") return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
-  await capture(tab);
+  if (command === "capture") {
+    await capture(tab, CAPTURE_MODE_VIEWPORT);
+  }
+  if (command === "capture-full-content") {
+    await capture(tab, CAPTURE_MODE_FULL_CONTENT);
+  }
 });
 
-async function capture(tab) {
+async function capture(tab, mode = CAPTURE_MODE_VIEWPORT) {
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
-      format: "png",
-    });
+    const dataUrl =
+      mode === CAPTURE_MODE_FULL_CONTENT
+        ? await captureFullContent(tab)
+        : await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
     const [result] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: copyImageFromDataUrl,
-      args: [dataUrl],
+      args: [
+        dataUrl,
+        mode === CAPTURE_MODE_FULL_CONTENT
+          ? "Copied full page to clipboard"
+          : "Copied to clipboard",
+      ],
     });
     if (!result?.result?.ok) {
       console.warn("Webshot clipboard write failed:", result?.result?.error);
@@ -43,12 +101,178 @@ async function capture(tab) {
   }
 }
 
-async function copyImageFromDataUrl(dataUrl) {
+async function captureFullContent(tab) {
+  const debuggee = { tabId: tab.id };
+  const originalViewport = await getViewportState(tab.id);
+
+  await chrome.debugger.attach(debuggee, DEBUGGER_PROTOCOL_VERSION);
+
+  try {
+    await chrome.debugger.sendCommand(debuggee, "Page.enable");
+    await setViewportOverride(debuggee, originalViewport.viewportWidth, originalViewport.viewportHeight, originalViewport.deviceScaleFactor);
+    await setPageScroll(tab.id, 0, 0);
+    await settlePage(tab.id);
+
+    let previousTarget = null;
+
+    for (let pass = 0; pass < MAX_VIEWPORT_GROWTH_PASSES; pass += 1) {
+      const bounds = await measurePageBounds(tab.id);
+
+      if (!bounds.canScrollX && !bounds.canScrollY) {
+        break;
+      }
+
+      const target = {
+        width: Math.max(1, bounds.viewportWidth, Math.ceil(bounds.scrollWidth)),
+        height: Math.max(1, bounds.viewportHeight, Math.ceil(bounds.scrollHeight)),
+      };
+
+      if (
+        previousTarget &&
+        previousTarget.width === target.width &&
+        previousTarget.height === target.height
+      ) {
+        break;
+      }
+
+      previousTarget = target;
+      await setViewportOverride(
+        debuggee,
+        target.width,
+        target.height,
+        originalViewport.deviceScaleFactor,
+      );
+      await settlePage(tab.id);
+    }
+
+    const finalBounds = await measurePageBounds(tab.id);
+    const screenshot = await chrome.debugger.sendCommand(
+      debuggee,
+      "Page.captureScreenshot",
+      {
+        format: "png",
+        fromSurface: true,
+        captureBeyondViewport: true,
+        clip: {
+          x: 0,
+          y: 0,
+          width: Math.max(1, Math.ceil(finalBounds.scrollWidth)),
+          height: Math.max(1, Math.ceil(finalBounds.scrollHeight)),
+          scale: 1,
+        },
+      },
+    );
+
+    return `data:image/png;base64,${screenshot.data}`;
+  } finally {
+    try {
+      await chrome.debugger.sendCommand(debuggee, "Emulation.clearDeviceMetricsOverride");
+      await settlePage(tab.id);
+    } catch (err) {
+      console.warn("Webshot failed to clear viewport override:", err);
+    }
+
+    try {
+      await setPageScroll(tab.id, originalViewport.scrollX, originalViewport.scrollY);
+    } catch (err) {
+      console.warn("Webshot failed to restore scroll position:", err);
+    }
+
+    try {
+      await chrome.debugger.detach(debuggee);
+    } catch (err) {
+      console.warn("Webshot failed to detach debugger:", err);
+    }
+  }
+}
+
+async function setViewportOverride(debuggee, width, height, deviceScaleFactor) {
+  await chrome.debugger.sendCommand(debuggee, "Emulation.setDeviceMetricsOverride", {
+    width,
+    height,
+    deviceScaleFactor,
+    mobile: false,
+    screenWidth: width,
+    screenHeight: height,
+  });
+}
+
+async function getViewportState(tabId) {
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => ({
+      viewportWidth: Math.ceil(window.innerWidth),
+      viewportHeight: Math.ceil(window.innerHeight),
+      deviceScaleFactor: window.devicePixelRatio || 1,
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    }),
+  });
+
+  return result.result;
+}
+
+async function measurePageBounds(tabId) {
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: () => {
+      const root = document.documentElement;
+      const body = document.body;
+      const scrollingElement = document.scrollingElement || root;
+      const scrollWidth = Math.max(
+        root?.scrollWidth || 0,
+        body?.scrollWidth || 0,
+        scrollingElement?.scrollWidth || 0,
+      );
+      const scrollHeight = Math.max(
+        root?.scrollHeight || 0,
+        body?.scrollHeight || 0,
+        scrollingElement?.scrollHeight || 0,
+      );
+      const viewportWidth = Math.ceil(window.innerWidth);
+      const viewportHeight = Math.ceil(window.innerHeight);
+
+      return {
+        scrollWidth,
+        scrollHeight,
+        viewportWidth,
+        viewportHeight,
+        canScrollX: scrollWidth > viewportWidth + 1,
+        canScrollY: scrollHeight > viewportHeight + 1,
+      };
+    },
+  });
+
+  return result.result;
+}
+
+async function setPageScroll(tabId, x, y) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (scrollX, scrollY) => {
+      window.scrollTo(scrollX, scrollY);
+    },
+    args: [x, y],
+  });
+}
+
+async function settlePage(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: async () => {
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
+    },
+  });
+}
+
+async function copyImageFromDataUrl(dataUrl, successText = "Copied to clipboard") {
   try {
     const blob = await toCssPixelBlob(dataUrl);
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
     flashScreen();
-    flash("Copied to clipboard");
+    flash(successText);
     return { ok: true };
   } catch (error) {
     flash("Webshot: clipboard blocked — click the page and retry");
